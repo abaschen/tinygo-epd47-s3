@@ -30,11 +30,15 @@
           "fmt",
           "--stdin"
         ]
-        
       }
     }
   },
   "mounts": [
+    {
+      "source": "${localEnv:HOME}/.ssh",
+      "target": "/home/vscode/.ssh",
+      "type": "bind"
+    },
     {
       "source": "${localEnv:HOME}/.gitconfig",
       "target": "/home/vscode/.gitconfig",
