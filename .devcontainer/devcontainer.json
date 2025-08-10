@@ -1,0 +1,48 @@
+{
+  "name": "Golang",
+  "image": "mcr.microsoft.com/devcontainers/go:1.24-bookworm",
+  "features": {
+    "ghcr.io/brokeyourbike/devcontainer-features/mockery-go:latest": {},
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.Go",
+        "ms-vscode.makefile-tools"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "terminal.integrated.allowChords": false,
+        "editor.codeActionsOnSave": {
+          "source.organizeImports": "always"
+        },
+        "go.useLanguageServer": true,
+        "go.lintTool": "golangci-lint",
+        "go.lintFlags": [
+          "--path-mode=abs",
+          "--fast-only"
+        ],
+        "go.formatTool": "custom",
+        "go.alternateTools": {
+          "customFormatter": "golangci-lint"
+        },
+        "go.formatFlags": [
+          "fmt",
+          "--stdin"
+        ]
+        
+      }
+    }
+  },
+  "mounts": [
+    {
+      "source": "${localEnv:HOME}/.gitconfig",
+      "target": "/home/vscode/.gitconfig",
+      "type": "bind"
+    }
+  ],
+  "remoteUser": "vscode",
+  "containerEnv": {
+    "GOPROXY": "direct"
+  }
+}
