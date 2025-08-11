@@ -156,6 +156,11 @@ func New(cfg Config) *Device {
 // Configure initializes the device and pushes the initial configuration.
 // This should be called after New() and before any drawing operations.
 func (d *Device) Configure() error {
+	// Clear line buffers for clean state
+	clear(d.line1b[:])
+	clear(d.line4b[:])
+	clear(d.convLUT[:])
+	
 	// Push initial (all-safed) config.
 	d.pushCfg()
 	return nil
@@ -166,6 +171,32 @@ func (d *Device) Width() int { return d.w }
 
 // Height returns the panel height in pixels.
 func (d *Device) Height() int { return d.h }
+
+// clearLineBuffer efficiently clears the 1bpp line buffer
+func (d *Device) clearLineBuffer() {
+	clear(d.line1b[:])
+}
+
+// clearGrayscaleBuffer efficiently clears the 4bpp line buffer
+func (d *Device) clearGrayscaleBuffer() {
+	clear(d.line4b[:])
+}
+
+// fillBuffer efficiently fills a byte slice with a specific value.
+// Uses Go's built-in clear() for zero values (more efficient), 
+// manual loop for non-zero values.
+// Reference: https://zetcode.com/golang/builtins-clear/
+func fillBuffer(buf []byte, value byte) {
+	if value == 0 {
+		// Use clear() for zero values - optimized by the compiler
+		clear(buf)
+	} else {
+		// Manual fill for non-zero values
+		for i := range buf {
+			buf[i] = value
+		}
+	}
+}
 // Size returns the display dimensions as required by Displayer interface
 func (d *Device) Size() (x, y int16) {
 	return int16(d.w), int16(d.h)

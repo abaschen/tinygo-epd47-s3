@@ -100,6 +100,7 @@ func (d *LilyGoT547) DrawText(x, y int, text string, charWidth, charHeight int) 
 	
 	// Create a simple pattern for each character
 	data := make([]byte, (totalWidth+7)/8*totalHeight)
+	// Note: make() already zeros the slice, so no need to clear()
 	
 	for i, char := range text {
 		charX := i * (charWidth + 2)
@@ -133,6 +134,7 @@ func (d *LilyGoT547) DrawRectangle(x, y, w, h int, filled bool) {
 	}
 	
 	data := make([]byte, (w+7)/8*h)
+	// Note: make() already zeros the slice, so no need to clear()
 	
 	for r := 0; r < h; r++ {
 		for c := 0; c < w; c++ {
@@ -165,6 +167,7 @@ func (d *LilyGoT547) DrawGradient(x, y, w, h int, horizontal bool, mode DrawMode
 	}
 	
 	data := make([]byte, (w/2+w%2)*h)
+	// Note: make() already zeros the slice, so no need to clear()
 	
 	for r := 0; r < h; r++ {
 		for c := 0; c < w; c++ {
@@ -199,6 +202,7 @@ func (d *LilyGoT547) DrawCheckerboard(x, y, w, h, blockSize int) {
 	}
 	
 	data := make([]byte, (w+7)/8*h)
+	// Note: make() already zeros the slice, so no need to clear()
 	
 	for r := 0; r < h; r++ {
 		for c := 0; c < w; c++ {

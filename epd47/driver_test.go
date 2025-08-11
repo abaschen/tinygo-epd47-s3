@@ -267,3 +267,56 @@ func TestGrayscaleDisplayerInterface(t *testing.T) {
 		t.Errorf("Expected clamped value 15, got %d", gdisp.GetGrayscalePixel(20, 0))
 	}
 }
+
+func TestBufferClearing(t *testing.T) {
+	cfg := Config{
+		Width:  100,
+		Height: 100,
+		CFG_DATA: mockPinOut,
+		CFG_CLK:  mockPinOut,
+		CFG_STR:  mockPinOut,
+		CKV: mockPinOut,
+		STH: mockPinOut,
+		CKH: mockPinOut,
+		D0: mockPinOut, D1: mockPinOut, D2: mockPinOut, D3: mockPinOut,
+		D4: mockPinOut, D5: mockPinOut, D6: mockPinOut, D7: mockPinOut,
+		SleepUS: mockSleep,
+	}
+
+	d := New(cfg)
+	d.Configure()
+	
+	// Test fillBuffer function
+	testBuf := make([]byte, 100)
+	
+	// Fill with non-zero value
+	fillBuffer(testBuf, 0xAA)
+	for i, v := range testBuf {
+		if v != 0xAA {
+			t.Errorf("Expected 0xAA at index %d, got 0x%02X", i, v)
+		}
+	}
+	
+	// Clear with zero (should use clear() internally)
+	fillBuffer(testBuf, 0x00)
+	for i, v := range testBuf {
+		if v != 0x00 {
+			t.Errorf("Expected 0x00 at index %d, got 0x%02X", i, v)
+		}
+	}
+	
+	// Test device buffer clearing methods
+	d.clearLineBuffer()
+	for i, v := range d.line1b[:10] { // Check first 10 bytes
+		if v != 0 {
+			t.Errorf("line1b not cleared at index %d, got 0x%02X", i, v)
+		}
+	}
+	
+	d.clearGrayscaleBuffer()
+	for i, v := range d.line4b[:10] { // Check first 10 bytes
+		if v != 0 {
+			t.Errorf("line4b not cleared at index %d, got 0x%02X", i, v)
+		}
+	}
+}

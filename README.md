@@ -11,6 +11,7 @@ A TinyGo driver for the 4.7" e-Paper display (ED047TC1) on the LilyGo ESP32-S3 T
 - **4bpp (grayscale) drawing**: 16-level grayscale with proper dithering
 - **Hardware abstraction**: Pin-agnostic design using function pointers
 - **Memory efficient**: Pre-allocated line buffers to avoid heap allocations
+- **Performance optimized**: Uses Go's `clear()` builtin for efficient buffer operations
 - **Power management**: Proper power sequencing for the e-paper display
 - **Build tag support**: Separate implementations for TinyGo and testing
 
@@ -290,6 +291,8 @@ The driver is organized into several modules:
 - `examples/`: Usage examples
   - `lilygo_simple.go`: **Recommended** - Simple example using preconfigured device
   - `lilygo_advanced.go`: Advanced demo with complex patterns and animations
+  - `tinygo_patterns.go`: Demonstrates TinyGo interface patterns
+  - `performance_demo.go`: Shows buffer clearing optimizations with `clear()`
   - `main.go`: Original example with checkerboard and gradient
   - `generic_main.go`: Generic example using Pin() constructor
   - `demo.go`: Comprehensive demo showing all features

@@ -18,9 +18,9 @@ func (d *Device) resetLUT(mode DrawMode) {
 	if mode == WhiteOnBlack || mode == WhiteOnWhite {
 		fill = 0xAA
 	}
-	for i := 0; i < len(d.convLUT); i++ {
-		d.convLUT[i] = fill
-	}
+	
+	// Use efficient buffer filling
+	fillBuffer(d.convLUT[:], fill)
 }
 
 func (d *Device) updateLUT(k uint8, mode DrawMode) {
@@ -65,10 +65,8 @@ func (d *Device) calcEPDInput4bpp(v []uint16, outLen int) {
 func (d *Device) expand4bppLine(src []byte, x, w int, v []uint16) {
 	// full-width packed 4bpp scratch: reuse line4b as temporary byte buffer, since we overwrite it later from calc
 	full := d.line4b[:d.w/2]
-	// clear only the part needed at edges
-	for i := 0; i < len(full); i++ {
-		full[i] = 0
-	}
+	// clear only the part needed at edges - use clear() for better performance
+	clear(full)
 	// place src at x/2
 	start := x / 2
 	copy(full[start:start+len(src)], src)
@@ -136,20 +134,16 @@ func (d *Device) Clear(cycles int) {
 	}
 	n := d.w / 8
 	for c := 0; c < cycles; c++ {
-		// dark
-		for i := 0; i < n; i++ {
-			d.line1b[i] = 0x00
-		}
+		// dark - use clear() for zeroing
+		clear(d.line1b[:n])
 		d.StartFrame()
 		for row := 0; row < d.h; row++ {
 			d.outputRow1bpp(n, 10)
 		}
 		d.EndFrame()
 
-		// white
-		for i := 0; i < n; i++ {
-			d.line1b[i] = 0xFF
-		}
+		// white - use efficient buffer filling
+		fillBuffer(d.line1b[:n], 0xFF)
 		d.StartFrame()
 		for row := 0; row < d.h; row++ {
 			d.outputRow1bpp(n, 10)
@@ -175,10 +169,8 @@ func (d *Device) Draw1bpp(x, y, w, h int, src []byte, pulseUS int) {
 			d.SkipRow()
 			continue
 		}
-		// zero line
-		for i := 0; i < dstStride; i++ {
-			d.line1b[i] = 0
-		}
+		// zero line - use clear() for better performance
+		clear(d.line1b[:dstStride])
 		// blit row bits into position
 		sr := src[(row-y)*srcStride : (row-y+1)*srcStride]
 		for col := 0; col < w; col++ {
