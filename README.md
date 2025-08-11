@@ -14,6 +14,7 @@ A TinyGo driver for the 4.7" e-Paper display (ED047TC1) on the LilyGo ESP32-S3 T
 - **Performance optimized**: Uses Go's `clear()` builtin for efficient buffer operations
 - **Power management**: Proper power sequencing for the e-paper display
 - **Build tag support**: Separate implementations for TinyGo and testing
+- **Developer friendly**: Comprehensive Makefile with 30+ commands for easy development
 
 ## Hardware Support
 
@@ -273,6 +274,26 @@ The driver supports three drawing modes for 4bpp images:
 ## Building and Uploading
 
 ### Quick Start
+
+**Using Makefile (Recommended):**
+```bash
+# Check environment and dependencies
+make check-env
+
+# Build and test
+make dev
+
+# Flash to device
+make flash-simple
+
+# Monitor output (replace with your port)
+make monitor PORT=/dev/ttyUSB0
+
+# See all available commands
+make help
+```
+
+**Manual Commands:**
 ```bash
 # Build and flash in one command
 tinygo flash -target=esp32 ./examples/lilygo_simple.go
@@ -286,10 +307,17 @@ tinygo build -target=esp32 -o firmware.bin ./examples/lilygo_simple.go
 - **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)**: Quick fixes for common issues
 
 Key steps:
-1. Install TinyGo and esptool
+1. Install TinyGo and esptool: `make install-deps`
 2. Connect board via USB-C
-3. Run `tinygo flash -target=esp32 ./examples/lilygo_simple.go`
-4. Monitor with `screen /dev/ttyUSB0 115200`
+3. Flash firmware: `make flash-simple`
+4. Monitor output: `make monitor PORT=/dev/ttyUSB0`
+
+**Makefile Commands:**
+- `make help` - Show all available commands
+- `make workflow-help` - Show common development workflows
+- `make build-all` - Build all examples
+- `make test` - Run all tests
+- `make clean` - Clean build artifacts
 
 ## Architecture
 
