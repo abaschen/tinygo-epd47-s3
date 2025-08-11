@@ -32,8 +32,19 @@ The driver implements standard TinyGo display interfaces:
 // Use as standard TinyGo display interface
 var display epd47.Displayer = device
 w, h := display.Size()
-display.SetPixel(10, 0, true)  // Note: simplified implementation
+
+// Set individual pixels anywhere on the display
+display.SetPixel(100, 200, true)
+display.SetGrayscalePixel(150, 250, 8) // 0-15 grayscale
+
+// Render accumulated pixels to the display
+display.Display()
 ```
+
+**Key Features:**
+- **Full display support**: Works across entire 960×540 area
+- **Memory efficient**: Sparse buffers only store changed pixels
+- **Automatic optimization**: Renders only bounding box of changed pixels
 
 ## Pin Configuration
 
@@ -293,6 +304,7 @@ The driver is organized into several modules:
   - `lilygo_advanced.go`: Advanced demo with complex patterns and animations
   - `tinygo_patterns.go`: Demonstrates TinyGo interface patterns
   - `performance_demo.go`: Shows buffer clearing optimizations with `clear()`
+  - `pixel_interface_demo.go`: **New** - Demonstrates improved pixel-level interface
   - `main.go`: Original example with checkerboard and gradient
   - `generic_main.go`: Generic example using Pin() constructor
   - `demo.go`: Comprehensive demo showing all features

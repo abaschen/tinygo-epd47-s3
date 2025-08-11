@@ -203,15 +203,22 @@ func TestDisplayerInterface(t *testing.T) {
 		t.Errorf("Expected size 100x100, got %dx%d", w, h)
 	}
 	
-	// Test pixel operations (only first line supported in this implementation)
-	disp.SetPixel(10, 0, true)
-	if !disp.GetPixel(10, 0) {
+	// Test pixel operations (now supports full display area)
+	disp.SetPixel(10, 20, true)
+	if !disp.GetPixel(10, 20) {
 		t.Error("Pixel should be set")
 	}
 	
-	disp.SetPixel(10, 0, false)
-	if disp.GetPixel(10, 0) {
+	disp.SetPixel(10, 20, false)
+	if disp.GetPixel(10, 20) {
 		t.Error("Pixel should be cleared")
+	}
+	
+	// Test multiple pixels
+	disp.SetPixel(50, 30, true)
+	disp.SetPixel(60, 40, true)
+	if !disp.GetPixel(50, 30) || !disp.GetPixel(60, 40) {
+		t.Error("Multiple pixels should be set")
 	}
 	
 	// Test bounds
@@ -251,10 +258,17 @@ func TestGrayscaleDisplayerInterface(t *testing.T) {
 	// Test GrayscaleDisplayer interface
 	var gdisp GrayscaleDisplayer = d
 	
-	// Test grayscale pixel operations (only first line supported in this implementation)
-	gdisp.SetGrayscalePixel(10, 0, 8)
-	if gdisp.GetGrayscalePixel(10, 0) != 8 {
-		t.Errorf("Expected grayscale value 8, got %d", gdisp.GetGrayscalePixel(10, 0))
+	// Test grayscale pixel operations (now supports full display area)
+	gdisp.SetGrayscalePixel(10, 25, 8)
+	if gdisp.GetGrayscalePixel(10, 25) != 8 {
+		t.Errorf("Expected grayscale value 8, got %d", gdisp.GetGrayscalePixel(10, 25))
+	}
+	
+	// Test multiple grayscale pixels
+	gdisp.SetGrayscalePixel(30, 35, 12)
+	gdisp.SetGrayscalePixel(40, 45, 4)
+	if gdisp.GetGrayscalePixel(30, 35) != 12 || gdisp.GetGrayscalePixel(40, 45) != 4 {
+		t.Error("Multiple grayscale pixels should be set correctly")
 	}
 	
 	// Test bounds
@@ -262,9 +276,15 @@ func TestGrayscaleDisplayerInterface(t *testing.T) {
 	gdisp.SetGrayscalePixel(200, 200, 15) // Should not panic
 	
 	// Test value clamping
-	gdisp.SetGrayscalePixel(20, 0, 20) // Should clamp to 15
-	if gdisp.GetGrayscalePixel(20, 0) != 15 {
-		t.Errorf("Expected clamped value 15, got %d", gdisp.GetGrayscalePixel(20, 0))
+	gdisp.SetGrayscalePixel(20, 15, 20) // Should clamp to 15
+	if gdisp.GetGrayscalePixel(20, 15) != 15 {
+		t.Errorf("Expected clamped value 15, got %d", gdisp.GetGrayscalePixel(20, 15))
+	}
+	
+	// Test Display() method renders pixels
+	err := gdisp.Display()
+	if err != nil {
+		t.Errorf("Display() failed: %v", err)
 	}
 }
 
@@ -318,5 +338,105 @@ func TestBufferClearing(t *testing.T) {
 		if v != 0 {
 			t.Errorf("line4b not cleared at index %d, got 0x%02X", i, v)
 		}
+	}
+}
+
+func TestSparsePixelBuffer(t *testing.T) {
+	cfg := Config{
+		Width:  200,
+		Height: 200,
+		CFG_DATA: mockPinOut,
+		CFG_CLK:  mockPinOut,
+		CFG_STR:  mockPinOut,
+		CKV: mockPinOut,
+		STH: mockPinOut,
+		CKH: mockPinOut,
+		D0: mockPinOut, D1: mockPinOut, D2: mockPinOut, D3: mockPinOut,
+		D4: mockPinOut, D5: mockPinOut, D6: mockPinOut, D7: mockPinOut,
+		SleepUS: mockSleep,
+	}
+
+	d := New(cfg)
+	d.Configure()
+	
+	// Test sparse pixel buffer efficiency
+	// Set scattered pixels across the display
+	testPixels := []struct{x, y int16; value bool}{
+		{10, 20, true},
+		{50, 100, true},
+		{150, 180, true},
+		{75, 25, false}, // This should not be stored
+	}
+	
+	for _, p := range testPixels {
+		d.SetPixel(p.x, p.y, p.value)
+	}
+	
+	// Verify pixels are stored correctly
+	for _, p := range testPixels {
+		got := d.GetPixel(p.x, p.y)
+		if got != p.value {
+			t.Errorf("Pixel at (%d,%d): expected %v, got %v", p.x, p.y, p.value, got)
+		}
+	}
+	
+	// Test that false pixels are not stored (memory optimization)
+	if d.pixelBuffer != nil {
+		// Should only have 3 pixels (the true ones)
+		expectedCount := 3
+		if len(d.pixelBuffer) != expectedCount {
+			t.Errorf("Expected %d pixels in buffer, got %d", expectedCount, len(d.pixelBuffer))
+		}
+	}
+	
+	// Test grayscale buffer
+	testGrayPixels := []struct{x, y int16; value uint8}{
+		{15, 25, 8},
+		{55, 105, 12},
+		{155, 185, 3},
+		{80, 30, 0}, // This should not be stored
+	}
+	
+	for _, p := range testGrayPixels {
+		d.SetGrayscalePixel(p.x, p.y, p.value)
+	}
+	
+	// Verify grayscale pixels
+	for _, p := range testGrayPixels {
+		got := d.GetGrayscalePixel(p.x, p.y)
+		if got != p.value {
+			t.Errorf("Grayscale pixel at (%d,%d): expected %d, got %d", p.x, p.y, p.value, got)
+		}
+	}
+	
+	// Test Display() method (should not error)
+	err := d.Display()
+	if err != nil {
+		t.Errorf("Display() failed: %v", err)
+	}
+	
+	// After Display(), buffers should be cleared
+	if d.pixelBuffer != nil && len(d.pixelBuffer) > 0 {
+		t.Error("Pixel buffer should be cleared after Display()")
+	}
+	if d.grayscaleBuffer != nil && len(d.grayscaleBuffer) > 0 {
+		t.Error("Grayscale buffer should be cleared after Display()")
+	}
+	
+	// Test ClearDisplay()
+	d.SetPixel(100, 100, true)
+	d.SetGrayscalePixel(101, 101, 10)
+	
+	err = d.ClearDisplay()
+	if err != nil {
+		t.Errorf("ClearDisplay() failed: %v", err)
+	}
+	
+	// Buffers should be empty
+	if d.GetPixel(100, 100) != false {
+		t.Error("Pixel should be cleared after ClearDisplay()")
+	}
+	if d.GetGrayscalePixel(101, 101) != 0 {
+		t.Error("Grayscale pixel should be cleared after ClearDisplay()")
 	}
 }

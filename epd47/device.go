@@ -60,6 +60,11 @@ type Device struct {
 	// LUT for 4bpp conversion - moved from global to instance
 	// Use smaller LUT for constrained targets
 	convLUT [1 << 12]byte // 4KB instead of 64KB
+
+	// Sparse pixel buffers for interface compliance
+	// Only stores non-zero/non-false pixels to minimize memory usage
+	pixelBuffer     map[uint32]bool  // 1bpp pixels (key: y<<16|x)
+	grayscaleBuffer map[uint32]uint8 // 4bpp pixels (key: y<<16|x)
 }
 
 // Hardware/format limits for this panel.
@@ -161,6 +166,10 @@ func (d *Device) Configure() error {
 	clear(d.line4b[:])
 	clear(d.convLUT[:])
 	
+	// Initialize pixel buffers (lazy initialization - they'll be created when needed)
+	d.pixelBuffer = nil
+	d.grayscaleBuffer = nil
+	
 	// Push initial (all-safed) config.
 	d.pushCfg()
 	return nil
@@ -197,45 +206,169 @@ func fillBuffer(buf []byte, value byte) {
 		}
 	}
 }
+
+// renderPixelBuffer converts sparse pixel buffer to display format and renders it
+func (d *Device) renderPixelBuffer() error {
+	if len(d.pixelBuffer) == 0 {
+		return nil
+	}
+	
+	// Find bounding box to minimize rendering area
+	minX, minY := int16(d.w), int16(d.h)
+	maxX, maxY := int16(0), int16(0)
+	
+	for key := range d.pixelBuffer {
+		x := int16(key & 0xFFFF)
+		y := int16(key >> 16)
+		if x < minX { minX = x }
+		if x > maxX { maxX = x }
+		if y < minY { minY = y }
+		if y > maxY { maxY = y }
+	}
+	
+	// Calculate render area
+	w := int(maxX - minX + 1)
+	h := int(maxY - minY + 1)
+	
+	// Create bitmap for the bounding box
+	stride := (w + 7) / 8
+	bitmap := make([]byte, stride*h)
+	
+	// Fill bitmap from sparse buffer
+	for key, value := range d.pixelBuffer {
+		if !value { continue } // Skip false pixels
+		
+		x := int16(key & 0xFFFF) - minX
+		y := int16(key >> 16) - minY
+		
+		byteIdx := int(y)*stride + int(x>>3)
+		bit := 7 - (int(x) & 7)
+		bitmap[byteIdx] |= (1 << bit)
+	}
+	
+	// Render to display
+	d.Draw1bpp(int(minX), int(minY), w, h, bitmap, 10)
+	
+	// Clear the buffer after rendering
+	clear(d.pixelBuffer)
+	
+	return nil
+}
+
+// renderGrayscaleBuffer converts sparse grayscale buffer to display format and renders it
+func (d *Device) renderGrayscaleBuffer() error {
+	if len(d.grayscaleBuffer) == 0 {
+		return nil
+	}
+	
+	// Find bounding box
+	minX, minY := int16(d.w), int16(d.h)
+	maxX, maxY := int16(0), int16(0)
+	
+	for key := range d.grayscaleBuffer {
+		x := int16(key & 0xFFFF)
+		y := int16(key >> 16)
+		if x < minX { minX = x }
+		if x > maxX { maxX = x }
+		if y < minY { minY = y }
+		if y > maxY { maxY = y }
+	}
+	
+	// Calculate render area
+	w := int(maxX - minX + 1)
+	h := int(maxY - minY + 1)
+	
+	// Create 4bpp bitmap for the bounding box
+	stride := (w + 1) / 2
+	bitmap := make([]byte, stride*h)
+	
+	// Fill bitmap from sparse buffer
+	for key, value := range d.grayscaleBuffer {
+		if value == 0 { continue } // Skip zero pixels
+		
+		x := int16(key & 0xFFFF) - minX
+		y := int16(key >> 16) - minY
+		
+		byteIdx := int(y)*stride + int(x>>1)
+		if int(x)&1 == 0 {
+			// Even column - upper nibble
+			bitmap[byteIdx] = (value << 4) | (bitmap[byteIdx] & 0x0F)
+		} else {
+			// Odd column - lower nibble
+			bitmap[byteIdx] = (bitmap[byteIdx] & 0xF0) | (value & 0x0F)
+		}
+	}
+	
+	// Render to display
+	d.DrawImage4bpp(int(minX), int(minY), w, h, bitmap, BlackOnWhite)
+	
+	// Clear the buffer after rendering
+	clear(d.grayscaleBuffer)
+	
+	return nil
+}
 // Size returns the display dimensions as required by Displayer interface
 func (d *Device) Size() (x, y int16) {
 	return int16(d.w), int16(d.h)
 }
 
-// Display updates the screen - for e-paper this is handled by drawing operations
+// Display updates the screen with accumulated pixels from SetPixel/SetGrayscalePixel calls
 func (d *Device) Display() error {
-	// E-paper displays update immediately during draw operations
-	// This is a no-op but satisfies the interface
+	// Render 1bpp pixels if any exist
+	if d.pixelBuffer != nil && len(d.pixelBuffer) > 0 {
+		err := d.renderPixelBuffer()
+		if err != nil {
+			return err
+		}
+	}
+	
+	// Render 4bpp pixels if any exist
+	if d.grayscaleBuffer != nil && len(d.grayscaleBuffer) > 0 {
+		err := d.renderGrayscaleBuffer()
+		if err != nil {
+			return err
+		}
+	}
+	
 	return nil
 }
 
-// ClearDisplay clears the entire display
+// ClearDisplay clears the entire display and pixel buffers
 func (d *Device) ClearDisplay() error {
+	// Clear the physical display
 	d.Clear(2)
+	
+	// Clear pixel buffers
+	if d.pixelBuffer != nil {
+		clear(d.pixelBuffer)
+	}
+	if d.grayscaleBuffer != nil {
+		clear(d.grayscaleBuffer)
+	}
+	
 	return nil
 }
 
 // SetPixel sets a single pixel in the internal buffer (1bpp)
-// Note: This is a simplified implementation for interface compliance
-// For actual drawing, use Draw1bpp() method
+// This implementation uses a sparse pixel buffer to avoid full framebuffer memory usage.
+// Call Display() to render accumulated pixels to the e-paper display.
 func (d *Device) SetPixel(x, y int16, c bool) {
 	if x < 0 || y < 0 || int(x) >= d.w || int(y) >= d.h {
 		return
 	}
 	
-	// For this implementation, we'll use the line buffer as a single-line buffer
-	// This is mainly for interface compliance and testing
-	if int(y) == 0 { // Only support first line for simplicity
-		byteIdx := int(x >> 3)
-		bit := 7 - (int(x) & 7)
-		
-		if byteIdx < len(d.line1b) {
-			if c {
-				d.line1b[byteIdx] |= (1 << bit)
-			} else {
-				d.line1b[byteIdx] &^= (1 << bit)
-			}
-		}
+	// Initialize pixel buffer if needed
+	if d.pixelBuffer == nil {
+		d.pixelBuffer = make(map[uint32]bool)
+	}
+	
+	// Use a single uint32 key to store x,y coordinates
+	key := (uint32(y) << 16) | uint32(x)
+	
+	if c {
+		d.pixelBuffer[key] = true
+	} else {
+		delete(d.pixelBuffer, key) // Remove false pixels to save memory
 	}
 }
 
@@ -245,21 +378,17 @@ func (d *Device) GetPixel(x, y int16) bool {
 		return false
 	}
 	
-	// For this implementation, we'll use the line buffer as a single-line buffer
-	if int(y) == 0 { // Only support first line for simplicity
-		byteIdx := int(x >> 3)
-		bit := 7 - (int(x) & 7)
-		
-		if byteIdx < len(d.line1b) {
-			return (d.line1b[byteIdx]>>bit)&1 == 1
-		}
+	if d.pixelBuffer == nil {
+		return false
 	}
-	return false
+	
+	key := (uint32(y) << 16) | uint32(x)
+	return d.pixelBuffer[key] // Returns false if key doesn't exist
 }
 
 // SetGrayscalePixel sets a pixel with grayscale value (0-15)
-// Note: This is a simplified implementation for interface compliance
-// For actual drawing, use DrawImage4bpp() method
+// This implementation uses a sparse pixel buffer to avoid full framebuffer memory usage.
+// Call Display() to render accumulated pixels to the e-paper display.
 func (d *Device) SetGrayscalePixel(x, y int16, c uint8) {
 	if x < 0 || y < 0 || int(x) >= d.w || int(y) >= d.h {
 		return
@@ -269,18 +398,17 @@ func (d *Device) SetGrayscalePixel(x, y int16, c uint8) {
 		c = 15
 	}
 	
-	// For this implementation, we'll use the line buffer as a single-line buffer
-	if int(y) == 0 { // Only support first line for simplicity
-		byteIdx := int(x >> 1)
-		if byteIdx < len(d.line4b) {
-			if int(x)&1 == 0 {
-				// Even column - upper nibble
-				d.line4b[byteIdx] = (c << 4) | (d.line4b[byteIdx] & 0x0F)
-			} else {
-				// Odd column - lower nibble
-				d.line4b[byteIdx] = (d.line4b[byteIdx] & 0xF0) | (c & 0x0F)
-			}
-		}
+	// Initialize grayscale buffer if needed
+	if d.grayscaleBuffer == nil {
+		d.grayscaleBuffer = make(map[uint32]uint8)
+	}
+	
+	key := (uint32(y) << 16) | uint32(x)
+	
+	if c == 0 {
+		delete(d.grayscaleBuffer, key) // Remove zero pixels to save memory
+	} else {
+		d.grayscaleBuffer[key] = c
 	}
 }
 
@@ -290,18 +418,10 @@ func (d *Device) GetGrayscalePixel(x, y int16) uint8 {
 		return 0
 	}
 	
-	// For this implementation, we'll use the line buffer as a single-line buffer
-	if int(y) == 0 { // Only support first line for simplicity
-		byteIdx := int(x >> 1)
-		if byteIdx < len(d.line4b) {
-			if int(x)&1 == 0 {
-				// Even column - upper nibble
-				return (d.line4b[byteIdx] >> 4) & 0x0F
-			} else {
-				// Odd column - lower nibble
-				return d.line4b[byteIdx] & 0x0F
-			}
-		}
+	if d.grayscaleBuffer == nil {
+		return 0
 	}
-	return 0
+	
+	key := (uint32(y) << 16) | uint32(x)
+	return d.grayscaleBuffer[key] // Returns 0 if key doesn't exist
 }

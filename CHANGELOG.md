@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.0.0-alpha3] - 2025-08-11
+
+### Added - Improved Pixel Interface Implementation
+- **Full display area support**: SetPixel/GetPixel now work across entire 960x540 display
+- **Sparse pixel buffers**: Memory-efficient storage using maps (only stores non-zero pixels)
+- **Automatic rendering**: Display() method renders accumulated pixels to e-paper
+- **Bounding box optimization**: Only renders the minimal area containing changed pixels
+- **Mixed drawing support**: Combine pixel-level and high-level drawing methods
+- **Comprehensive testing**: Added tests for sparse buffer functionality
+- **Example demonstration**: Added `pixel_interface_demo.go` showing all capabilities
+
+### Improved
+- **Memory efficiency**: Sparse buffers use ~8 bytes per pixel vs full framebuffer (~64KB-256KB)
+- **Interface compliance**: Full TinyGo Displayer/GrayscaleDisplayer interface support
+- **Performance**: Bounding box rendering minimizes e-paper update area
+- **Usability**: No more "simplified implementation" limitations
+
+### Technical Details
+- Pixel coordinates stored as uint32 keys (y<<16|x) in maps
+- False/zero pixels automatically removed to save memory
+- Automatic buffer clearing after Display() calls
+- Compatible with existing high-level drawing methods
+
 ## [1.0.0-alpha2] - 2025-08-11
 
 ### Added - Performance Optimizations with Go's clear() builtin
