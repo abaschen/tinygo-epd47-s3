@@ -13,13 +13,13 @@ type reg struct {
 }
 
 func (d *Device) pushCfgBit(bit bool) {
-	d.p.cfgClk(false)
-	d.p.cfgData(bit)
-	d.p.cfgClk(true)
+	d.bus.cfgClk(false)
+	d.bus.cfgData(bit)
+	d.bus.cfgClk(true)
 }
 
 func (d *Device) pushCfg() {
-	d.p.cfgStr(false)
+	d.bus.cfgStr(false)
 	// reverse order like C push_cfg
 	d.pushCfgBit(d.cfg.epOutputEnable)
 	d.pushCfgBit(d.cfg.epMode)
@@ -29,18 +29,18 @@ func (d *Device) pushCfg() {
 	d.pushCfgBit(d.cfg.posPowerEnable)
 	d.pushCfgBit(d.cfg.powerDisable)
 	d.pushCfgBit(d.cfg.epLatchEnable)
-	d.p.cfgStr(true)
+	d.bus.cfgStr(true)
 }
 
 // pulseCKV in microseconds
 func (d *Device) pulseCKV(highUS, lowUS int) {
 	if highUS > 0 {
-		d.p.ckv(true)
-		d.t.sleepUS(highUS)
+		d.bus.ckv(true)
+		d.bus.sleepUS(highUS)
 	}
-	d.p.ckv(false)
+	d.bus.ckv(false)
 	if lowUS > 0 {
-		d.t.sleepUS(lowUS)
+		d.bus.sleepUS(lowUS)
 	}
 }
 
@@ -49,30 +49,30 @@ func (d *Device) PowerOn() {
 	d.cfg.epScanDirection = true
 	d.cfg.powerDisable = false
 	d.pushCfg()
-	d.t.sleepUS(100_000)
+	d.bus.sleepUS(100_000)
 
 	d.cfg.negPowerEnable = true
 	d.pushCfg()
-	d.t.sleepUS(500_000)
+	d.bus.sleepUS(500_000)
 
 	d.cfg.posPowerEnable = true
 	d.pushCfg()
-	d.t.sleepUS(100_000)
+	d.bus.sleepUS(100_000)
 
 	d.cfg.epSTV = true
 	d.pushCfg()
 
-	d.p.sth(true) // input enable
+	d.bus.sth(true) // input enable
 }
 
 func (d *Device) PowerOff() {
 	d.cfg.posPowerEnable = false
 	d.pushCfg()
-	d.t.sleepUS(10_000)
+	d.bus.sleepUS(10_000)
 
 	d.cfg.negPowerEnable = false
 	d.pushCfg()
-	d.t.sleepUS(100_000)
+	d.bus.sleepUS(100_000)
 
 	d.cfg.powerDisable = true
 	d.pushCfg()
@@ -94,7 +94,7 @@ func (d *Device) StartFrame() {
 	d.pulseCKV(1, 1)
 	d.cfg.epSTV = false
 	d.pushCfg()
-	d.t.sleepUS(1_000) // coarse busy delay
+	d.bus.sleepUS(1_000) // coarse busy delay
 	d.pulseCKV(10, 10)
 	d.cfg.epSTV = true
 	d.pushCfg()

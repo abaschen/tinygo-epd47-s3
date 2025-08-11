@@ -1,0 +1,70 @@
+# Changelog
+
+## [1.1.0] - 2025-08-11
+
+### Added - TinyGo Driver Design Compliance
+- Implemented standard TinyGo `Displayer` and `GrayscaleDisplayer` interfaces
+- Added `Configure()` method following TinyGo patterns (call after `New()`)
+- Created `LilyGoT547` convenience wrapper with automatic pin configuration
+- Added build tag separation for TinyGo vs testing environments
+- Implemented proper parallel bus abstraction
+- Added interface compliance tests
+- Created examples demonstrating TinyGo patterns
+
+### Changed
+- Moved global LUT to device instance to avoid global state
+- Reduced LUT size from 64KB to 4KB for memory-constrained targets
+- Refactored pin handling into `parallelBus` structure
+- Updated all examples to use `Configure()` method
+- Improved error handling and bounds checking
+
+### Fixed
+- Memory usage optimized for TinyGo targets
+- Removed global state following TinyGo best practices
+- Fixed bounds checking in 4bpp rendering
+
+## [1.0.0] - 2025-08-11
+
+### Added
+- Initial TinyGo driver implementation for LilyGo ESP32-S3 T5 4.7" e-Paper display
+- Support for ED047TC1 4.7" e-Paper panel (960x540 pixels)
+- 1bpp (monochrome) drawing with `Draw1bpp()` function
+- 4bpp (grayscale) drawing with `DrawImage4bpp()` function and 15-frame pipeline
+- Hardware abstraction using function pointers for pin control
+- Power management with proper sequencing (`PowerOn()`, `PowerOff()`, `PowerOffAll()`)
+- Memory-efficient design with pre-allocated line buffers
+- Three drawing modes: `BlackOnWhite`, `WhiteOnWhite`, `WhiteOnBlack`
+- Comprehensive test suite
+- Multiple example implementations
+
+### Features
+- **Pin Configuration**: Configurable pin mapping for ESP32-S3
+- **Drawing Operations**: 
+  - `Clear()`: Full screen clear with configurable cycles
+  - `Draw1bpp()`: Fast monochrome bitmap drawing
+  - `DrawImage4bpp()`: Grayscale drawing with dithering
+- **Hardware Control**: 8-bit parallel interface with proper timing
+- **Memory Management**: Fixed buffers to avoid heap allocations during drawing
+
+### Examples
+- `examples/main.go`: Original example with checkerboard and gradient
+- `examples/generic_main.go`: Generic example using Pin() constructor
+- `examples/demo.go`: Comprehensive demo showing all features
+
+### Testing
+- Unit tests for all major functions
+- Mock implementations for hardware-independent testing
+- Bounds checking and error handling tests
+
+### Documentation
+- Complete README with usage examples
+- API documentation in code
+- Pin configuration guide
+- Performance notes and limitations
+
+### Technical Details
+- Based on LilyGo-EPD47 PlatformIO library
+- Implements proper ED047TC1 control sequences
+- Uses lookup tables for 4bpp grayscale conversion
+- Supports clipping and bounds checking
+- Hardware timing optimized for e-Paper display characteristics

@@ -27,28 +27,28 @@ func sleepUS(us int) {
 }
 
 func main() {
-	// ESP32-S3 LilyGo T5 4.7" pins from ed047tc1.h
+	// ESP32-S3 LilyGo T5 4.7" pins using Pin() constructor
 	cfg := epd47.Config{
 		Width:  960,
 		Height: 540,
 
-		CFG_DATA: pinOut(machine.GPIO13),
-		CFG_CLK:  pinOut(machine.GPIO12),
-		CFG_STR:  pinOut(machine.GPIO0),
+		CFG_DATA: pinOut(machine.Pin(13)),
+		CFG_CLK:  pinOut(machine.Pin(12)),
+		CFG_STR:  pinOut(machine.Pin(0)),
 
-		CKV: pinOut(machine.GPIO38),
-		STH: pinOut(machine.GPIO40),
-		CKH: pinOut(machine.GPIO41),
+		CKV: pinOut(machine.Pin(38)),
+		STH: pinOut(machine.Pin(40)),
+		CKH: pinOut(machine.Pin(41)),
 
 		// D7..D0 = 7,6,5,4,3,2,1,8
-		D0: pinOut(machine.GPIO8),
-		D1: pinOut(machine.GPIO1),
-		D2: pinOut(machine.GPIO2),
-		D3: pinOut(machine.GPIO3),
-		D4: pinOut(machine.GPIO4),
-		D5: pinOut(machine.GPIO5),
-		D6: pinOut(machine.GPIO6),
-		D7: pinOut(machine.GPIO7),
+		D0: pinOut(machine.Pin(8)),
+		D1: pinOut(machine.Pin(1)),
+		D2: pinOut(machine.Pin(2)),
+		D3: pinOut(machine.Pin(3)),
+		D4: pinOut(machine.Pin(4)),
+		D5: pinOut(machine.Pin(5)),
+		D6: pinOut(machine.Pin(6)),
+		D7: pinOut(machine.Pin(7)),
 
 		SleepUS: sleepUS,
 	}

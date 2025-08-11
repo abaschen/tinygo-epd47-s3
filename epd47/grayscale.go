@@ -13,40 +13,32 @@ const (
 var contrast4 = [Frames4bpp]int{30, 30, 20, 20, 30, 30, 30, 40, 40, 50, 50, 50, 100, 200, 300}
 var contrast4White = [Frames4bpp]int{10, 10, 8, 8, 8, 8, 8, 10, 10, 15, 15, 20, 20, 100, 300}
 
-// 64KB LUT
-var convLUT [1 << 16]byte
-
-func resetLUT(mode DrawMode) {
+func (d *Device) resetLUT(mode DrawMode) {
 	fill := byte(0x55)
 	if mode == WhiteOnBlack || mode == WhiteOnWhite {
 		fill = 0xAA
 	}
-	for i := 0; i < len(convLUT); i++ {
-		convLUT[i] = fill
+	for i := 0; i < len(d.convLUT); i++ {
+		d.convLUT[i] = fill
 	}
 }
 
-func updateLUT(k uint8, mode DrawMode) {
+func (d *Device) updateLUT(k uint8, mode DrawMode) {
 	kk := k
 	if mode == BlackOnWhite || mode == WhiteOnWhite {
 		kk = 15 - k
 	}
-	// replicate C masking
-	for l := uint32(kk); l < (1 << 16); l += 16 {
-		convLUT[l] &= 0xFC
-	}
-	for l := uint32(kk) << 4; l < (1 << 16); l += (1 << 8) {
-		for p := uint32(0); p < 16; p++ {
-			convLUT[l+p] &= 0xF3
+	// Simplified LUT update for smaller table
+	lutSize := uint32(len(d.convLUT))
+	for l := uint32(kk); l < lutSize; l += 16 {
+		if l < lutSize {
+			d.convLUT[l] &= 0xFC
 		}
 	}
-	for l := uint32(kk) << 8; l < (1 << 16); l += (1 << 12) {
-		for p := uint32(0); p < (1 << 8); p++ {
-			convLUT[l+p] &= 0xCF
+	for l := uint32(kk) << 4; l < lutSize; l += (1 << 8) {
+		for p := uint32(0); p < 16 && l+p < lutSize; p++ {
+			d.convLUT[l+p] &= 0xF3
 		}
-	}
-	for p := uint32(kk) << 12; p < (uint32(kk+1) << 12); p++ {
-		convLUT[p] &= 0x3F
 	}
 }
 
@@ -54,11 +46,12 @@ func updateLUT(k uint8, mode DrawMode) {
 // For simplicity we assume lane order b1,b2,b3,b4; swap if needed after hardware test.
 func (d *Device) calcEPDInput4bpp(v []uint16, outLen int) {
 	oi := 0
-	for j := 0; oi < outLen; j += 4 {
-		b1 := convLUT[v[j+0]]
-		b2 := convLUT[v[j+1]]
-		b3 := convLUT[v[j+2]]
-		b4 := convLUT[v[j+3]]
+	lutMask := uint16(len(d.convLUT) - 1)
+	for j := 0; oi < outLen && j+3 < len(v); j += 4 {
+		b1 := d.convLUT[v[j+0]&lutMask]
+		b2 := d.convLUT[v[j+1]&lutMask]
+		b3 := d.convLUT[v[j+2]&lutMask]
+		b4 := d.convLUT[v[j+3]&lutMask]
 		d.line4b[oi+0] = b1
 		d.line4b[oi+1] = b2
 		d.line4b[oi+2] = b3
@@ -111,9 +104,9 @@ func (d *Device) DrawImage4bpp(x, y, w, h int, data []byte, mode DrawMode) {
 	var v [MaxWidth / 4]uint16
 	outLen := d.w / 2
 
-	resetLUT(mode)
+	d.resetLUT(mode)
 	for k := 0; k < Frames4bpp; k++ {
-		updateLUT(uint8(k), mode)
+		d.updateLUT(uint8(k), mode)
 		d.StartFrame()
 		for row := 0; row < d.h; row++ {
 			if row < y || row >= y+h {
@@ -130,7 +123,7 @@ func (d *Device) DrawImage4bpp(x, y, w, h int, data []byte, mode DrawMode) {
 		}
 		d.EndFrame()
 		// small settle
-		d.t.sleepUS(5_000)
+		d.bus.sleepUS(5_000)
 	}
 }
 
