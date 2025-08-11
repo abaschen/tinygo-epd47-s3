@@ -258,15 +258,26 @@ The driver supports three drawing modes for 4bpp images:
 - `epd47.WhiteOnWhite`: White text on white background (erasing)
 - `epd47.WhiteOnBlack`: White text on black background (inverse)
 
-## Building
+## Building and Uploading
 
+### Quick Start
 ```bash
-# For ESP32-S3 target (when available)
-tinygo build -target=esp32-s3 -o firmware.bin ./examples
+# Build and flash in one command
+tinygo flash -target=esp32 ./examples/lilygo_simple.go
 
-# For testing with other targets
-tinygo build -target=arduino -o test.bin ./examples/generic_main.go
+# Or build manually
+tinygo build -target=esp32 -o firmware.bin ./examples/lilygo_simple.go
 ```
+
+### Detailed Instructions
+- **[UPLOAD_GUIDE.md](UPLOAD_GUIDE.md)**: Complete setup and flashing instructions
+- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)**: Quick fixes for common issues
+
+Key steps:
+1. Install TinyGo and esptool
+2. Connect board via USB-C
+3. Run `tinygo flash -target=esp32 ./examples/lilygo_simple.go`
+4. Monitor with `screen /dev/ttyUSB0 115200`
 
 ## Architecture
 
